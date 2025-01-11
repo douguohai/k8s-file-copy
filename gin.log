@@ -4,10 +4,10 @@
  - using env:	export GIN_MODE=release
  - using code:	gin.SetMode(gin.ReleaseMode)
 
-[GIN-debug] GET    /ping                     --> main.main.func1 (3 handlers)
-[GIN-debug] POST   /copy/local/2/pod         --> main.main.func2 (3 handlers)
-[GIN-debug] POST   /copy/pod/2/local         --> main.main.func3 (3 handlers)
-[GIN-debug] GET    /static/*filepath         --> main.customStatic (3 handlers)
+[GIN-debug] GET    /ping                     --> main.main.func2 (4 handlers)
+[GIN-debug] POST   /copy/local/2/pod         --> main.main.func3 (4 handlers)
+[GIN-debug] POST   /copy/pod/2/local         --> main.main.func4 (4 handlers)
+[GIN-debug] GET    /static/*filepath         --> main.customStatic (4 handlers)
 [GIN-debug] [WARNING] You trusted all proxies, this is NOT safe. We recommend you to set a value.
 Please check https://pkg.go.dev/github.com/gin-gonic/gin#readme-don-t-trust-all-proxies for details.
 [GIN-debug] Environment variable PORT is undefined. Using port :8080 by default

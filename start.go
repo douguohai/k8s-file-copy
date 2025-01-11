@@ -6,7 +6,7 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/robfig/cron/v3"
 	"io"
-	"k3shelp/base"
+	"k8s-file-copy/base"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
 	restclient "k8s.io/client-go/rest"
@@ -34,7 +34,7 @@ func init() {
 	kubeConfig := filepath.Join(homedir.HomeDir(), ".kube", "config")
 	config, err = clientcmd.BuildConfigFromFlags("", kubeConfig)
 	if err != nil {
-		panic(err.Error())
+		panic("k8s 配置文件未配置，无法执行结果 " + err.Error())
 	}
 
 	// 2. 创建 Kubernetes 客户端
@@ -55,6 +55,11 @@ func main() {
 	gin.DefaultWriter = io.MultiWriter(f, os.Stdout)
 
 	r := gin.Default()
+
+	r.Use(gin.CustomRecovery(func(c *gin.Context, err interface{}) {
+		c.JSON(http.StatusBadRequest, "服务器异常")
+	}))
+
 	r.GET("/ping", func(c *gin.Context) {
 		c.JSON(200, gin.H{
 			"message": "pong",
@@ -74,7 +79,7 @@ func main() {
 		//移动本地缓存文件至相关pod内
 		if err != nil {
 			log.Printf("copy2pod 文件下载失败：%s", copy2pod.SourceFileUrl)
-			c.JSON(http.StatusOK, gin.H{"code": "500", "message": "文件下载失败" + err.Error()})
+			c.JSON(http.StatusOK, gin.H{"code": 500, "message": "文件下载失败" + err.Error()})
 			return
 		}
 
@@ -87,13 +92,13 @@ func main() {
 
 		if err != nil {
 			log.Printf("查询 k8s集群失败:%s ", copy2pod.ToJSONString())
-			c.JSON(http.StatusOK, gin.H{"code": "500", "message": "操作失败,没定位到pod的" + err.Error()})
+			c.JSON(http.StatusOK, gin.H{"code": 500, "message": "操作失败,没定位到pod的" + err.Error()})
 			return
 		}
 
 		if len(pods.Items) == 0 {
 			log.Printf("copy2pod k8s 根据 namespace: %s 和 deploymenmt：%s 没有找到存活的pod ", copy2pod.TargetNamespace, copy2pod.TargetDeployment)
-			c.JSON(http.StatusOK, gin.H{"code": "500", "message": "操作失败,没定位到pod的" + err.Error()})
+			c.JSON(http.StatusOK, gin.H{"code": 500, "message": "操作失败,没定位到pod的" + err.Error()})
 			return
 		}
 
@@ -110,11 +115,11 @@ func main() {
 		err = pod.CopyToPod(context.Background(), clientSet, config, filePath, copy2pod.TargetDir)
 		if err != nil {
 			log.Printf("复制文件失败: %s", copy2pod.ToJSONString())
-			c.JSON(http.StatusOK, gin.H{"code": "500", "message": "复制文件失败" + err.Error()})
+			c.JSON(http.StatusOK, gin.H{"code": 500, "message": "复制文件失败" + err.Error()})
 			return
 		}
 		log.Printf("复制文件成功: %s", copy2pod.ToJSONString())
-		c.JSON(http.StatusOK, gin.H{"code": "0", "message": "操作成功"})
+		c.JSON(http.StatusOK, gin.H{"code": 0, "message": "操作成功"})
 	})
 
 	// 绑定 JSON ({"user": "manu", "password": "123"})
@@ -131,13 +136,13 @@ func main() {
 
 		if err != nil {
 			log.Printf("查询 k8s集群失败:%s ", pod2local.ToJSONString())
-			c.JSON(http.StatusOK, gin.H{"code": "500", "message": "操作失败,没定位到pod的" + err.Error()})
+			c.JSON(http.StatusOK, gin.H{"code": 500, "message": "操作失败,没定位到pod的" + err.Error()})
 			return
 		}
 
 		if len(pods.Items) == 0 {
 			log.Printf("pod2local k8s 根据 namespace: %s 和 deploymenmt：%s 没有找到存活的pod ", pod2local.TargetNamespace, pod2local.TargetDeployment)
-			c.JSON(http.StatusOK, gin.H{"code": "500", "message": "操作失败,没定位到pod的" + err.Error()})
+			c.JSON(http.StatusOK, gin.H{"code": 500, "message": "操作失败,没定位到pod的" + err.Error()})
 			return
 		}
 
@@ -154,11 +159,11 @@ func main() {
 		err = pod.CopyFromPod(context.Background(), clientSet, config, pod2local.TargetFile, fileTempDir)
 		if err != nil {
 			log.Printf("pod2local 复制文件失败: %s", pod2local.ToJSONString())
-			c.JSON(http.StatusOK, gin.H{"code": "500", "message": "复制文件失败" + err.Error()})
+			c.JSON(http.StatusOK, gin.H{"code": 500, "message": "复制文件失败" + err.Error()})
 			return
 		}
 		log.Printf("pod2local 复制文件成功: %s", pod2local.ToJSONString())
-		c.JSON(http.StatusOK, gin.H{"code": "0", "message": "操作成功"})
+		c.JSON(http.StatusOK, gin.H{"code": 0, "message": "操作成功"})
 	})
 
 	r.GET("/static/*filepath", customStatic)
@@ -194,11 +199,11 @@ func customStatic(c *gin.Context) {
 	filePath := path.Join(staticRoot, strings.TrimPrefix(requestPath, "/static"))
 	fileInfo, err := os.Stat(filePath)
 	if err != nil {
-		c.JSON(http.StatusNotFound, gin.H{"error": "文件未找到"})
+		c.JSON(http.StatusNotFound, gin.H{"code": 500, "error": "文件未找到"})
 		return
 	}
 	if fileInfo.IsDir() {
-		c.JSON(http.StatusForbidden, gin.H{"error": "禁止访问目录列表"})
+		c.JSON(http.StatusForbidden, gin.H{"code": 500, "error": "禁止访问目录列表"})
 		return
 	}
 	c.File(filePath)

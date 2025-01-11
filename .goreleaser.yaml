@@ -22,6 +22,7 @@ builds:
       - linux
       - windows
       - darwin
+    binary: k8s-file-copy
 
 archives:
   - format: tar.gz
