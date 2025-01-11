@@ -4,7 +4,7 @@
 
 注意 targetDeployment 只允许有一个存活的pod，其他场景未考虑到
 
-支持 pod2local
+支持 local2pod
 
 post http://localhost:8080/copy/local/2/pod
 
@@ -25,7 +25,7 @@ post http://localhost:8080/copy/local/2/pod
 }
 ```
 
-支持 local2pod
+支持 pod2local
 
 post http://localhost:8080/copy/pod/2/local
 
