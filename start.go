@@ -21,6 +21,7 @@ import (
 )
 
 var fileTempDir = "./temp"
+var resultDir = "./result"
 
 var (
 	clientSet *kubernetes.Clientset
@@ -142,7 +143,7 @@ func main() {
 
 		if len(pods.Items) == 0 {
 			log.Printf("pod2local k8s 根据 namespace: %s 和 deploymenmt：%s 没有找到存活的pod ", pod2local.TargetNamespace, pod2local.TargetDeployment)
-			c.JSON(http.StatusOK, gin.H{"code": 500, "message": "操作失败,没定位到pod的" + err.Error()})
+			c.JSON(http.StatusOK, gin.H{"code": 500, "message": "操作失败,没定位到pod," + err.Error()})
 			return
 		}
 
@@ -156,14 +157,22 @@ func main() {
 			ContainerName: containerName,
 		}
 
-		err = pod.CopyFromPod(context.Background(), clientSet, config, pod2local.TargetFile, fileTempDir)
+		err = pod.CopyFromPod(context.Background(), clientSet, config, pod2local.TargetFile, resultDir)
 		if err != nil {
 			log.Printf("pod2local 复制文件失败: %s", pod2local.ToJSONString())
 			c.JSON(http.StatusOK, gin.H{"code": 500, "message": "复制文件失败" + err.Error()})
 			return
 		}
 		log.Printf("pod2local 复制文件成功: %s", pod2local.ToJSONString())
-		c.JSON(http.StatusOK, gin.H{"code": 0, "message": "操作成功"})
+		c.JSON(http.StatusOK, &base.CopyFormPodResult{
+			Code:    0,
+			Message: "操作成功",
+			Data: struct {
+				Url string `json:"url"`
+			}{
+				Url: fmt.Sprintf("/%s/%s", "static", filepath.Base(pod2local.TargetFile)),
+			},
+		})
 	})
 
 	r.GET("/static/*filepath", customStatic)
@@ -188,13 +197,19 @@ func cleanTempDir() {
 			_ = os.RemoveAll(fileTempDir)
 		}
 	}
+	dir, err = os.Stat(resultDir)
+	if err == nil {
+		if dir.IsDir() {
+			_ = os.RemoveAll(resultDir)
+		}
+	}
 }
 
 func customStatic(c *gin.Context) {
 	// 获取请求的路径
 	requestPath := c.Request.URL.Path
 	// 假设静态文件的根目录是 "static"，你可以根据实际情况修改
-	staticRoot := "temp"
+	staticRoot := "result"
 	// 拼接完整的文件路径
 	filePath := path.Join(staticRoot, strings.TrimPrefix(requestPath, "/static"))
 	fileInfo, err := os.Stat(filePath)

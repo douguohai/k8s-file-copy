@@ -131,4 +131,5 @@ Temporary Items
 dist
 temp
 *.log
+result
 

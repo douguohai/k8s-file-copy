@@ -139,4 +139,5 @@ Temporary Items
 
 dist/
 temp/
+result
 *.log

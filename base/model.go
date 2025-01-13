@@ -41,3 +41,12 @@ func (o CopyFormPod) ToJSONString() string {
 	j, _ := json.Marshal(o)
 	return string(j)
 }
+
+// CopyFormPodResult 复制成功返回结果
+type CopyFormPodResult struct {
+	Code    int    `json:"code"`
+	Message string `json:"message"`
+	Data    struct {
+		Url string `json:"url"`
+	} `json:"data"`
+}

@@ -12,3 +12,10 @@
 Please check https://pkg.go.dev/github.com/gin-gonic/gin#readme-don-t-trust-all-proxies for details.
 [GIN-debug] Environment variable PORT is undefined. Using port :8080 by default
 [GIN-debug] Listening and serving HTTP on :8080
+[GIN] 2025/01/13 - 09:42:46 | 304 |    1.290958ms |             ::1 | GET      "/static/fc5f6da213994d549f39325e8597c3ad.png"
+[GIN] 2025/01/13 - 09:42:47 | 304 |      62.583µs |             ::1 | GET      "/static/fc5f6da213994d549f39325e8597c3ad.png"
+[GIN] 2025/01/13 - 09:42:48 | 304 |     276.209µs |             ::1 | GET      "/static/fc5f6da213994d549f39325e8597c3ad.png"
+[GIN] 2025/01/13 - 09:43:09 | 200 |  486.000917ms |             ::1 | POST     "/copy/local/2/pod"
+[GIN] 2025/01/13 - 09:43:21 | 200 |  190.427208ms |             ::1 | POST     "/copy/pod/2/local"
+[GIN] 2025/01/13 - 09:43:34 | 200 |   12.187333ms |             ::1 | GET      "/static/c29151c4c9d749b3b6bb2127ecad9cc6.pdf"
+[GIN] 2025/01/13 - 10:05:07 | 200 |  258.190292ms |             ::1 | POST     "/copy/pod/2/local"
