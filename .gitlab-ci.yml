@@ -8,7 +8,7 @@ variables:
   RemoteHost: 101.35.142.76
 
 stages: # List of stages for jobs, and their order of execution
-  - build-base
+  - build-basic
   - build-police
 
 build_base: # This job runs in the build stage, which runs first.
@@ -19,8 +19,8 @@ build_base: # This job runs in the build stage, which runs first.
   variables:
     BaseImage: k8s-file-copy
     RemoteUrl: 192.168.10.239:8888/charles0320
-    AppRunEnv: base
-    NameSpace: base
+    AppRunEnv: basic
+    NameSpace: basic
   only:
     - main
   before_script: [ ]
