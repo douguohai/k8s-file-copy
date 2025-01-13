@@ -37,6 +37,5 @@ build_base: # This job runs in the build stage, which runs first.
     - echo "kubectl set NameSpace ${NameSpace}  deployment/${BaseImage} image ${RemoteImageName}"
     - kubectl set image deployment/${BaseImage} ${BaseImage}=${RemoteImageName} -n ${NameSpace}
     - echo "kubectl set successfully"
-    - # 获取最近一次的提交消息
     - noticejob deploy -e ${AppRunEnv} -v v-${TIMESTAMP} -n ${BaseImage} -t ${DingToken} -u ${WebURL_Dev}
     - echo "通知发送成功"
