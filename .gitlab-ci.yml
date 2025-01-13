@@ -11,8 +11,8 @@ stages: # List of stages for jobs, and their order of execution
   - build-basic
   - build-police
 
-build_base: # This job runs in the build stage, which runs first.
-  stage: build-base
+build-basic: # This job runs in the build stage, which runs first.
+  stage: build-basic
   when: manual
   tags:
     - shared
