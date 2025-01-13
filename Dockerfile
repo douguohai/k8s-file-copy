@@ -13,9 +13,9 @@ LABEL authors="douguohai@gmail.com"
 # 设置工作目录
 WORKDIR /app
 
-COPY --from=builder /app/.kube $HOME/.kube
+COPY --from=builder /app/.kube /root/.kube
 
 # 从构建阶段（builder）拷贝构建好的二进制文件到运行时镜像中
 COPY --from=builder /app/k8s-file-copy  /app/file-copy
 
-CMD ["/app/file-copy "]
+CMD ["/app/file-copy"]
