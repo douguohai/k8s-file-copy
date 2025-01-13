@@ -1,0 +1,42 @@
+variables:
+  RemoteUrlB: swr.cn-east-3.myhuaweicloud.com/ssstianmin
+  WebURL_Dev: https://xtm.sss-xtm.com/dev/dbsys/v1/
+  WebURL_Alpha: https://xtm.sss-xtm.com/alpah/dbsys/v1/
+  DingToken: 1e336794c4b90331ba4999dc6188fd4820808952d046cd6657f7797ecca54107
+  ProjectName: 大保系统重构-k8s-file-copy
+  JavaOps: -Xms512M -Xmx2048M
+  RemoteHost: 101.35.142.76
+
+stages: # List of stages for jobs, and their order of execution
+  - build-base
+  - build-police
+
+build_base: # This job runs in the build stage, which runs first.
+  stage: build-base
+  when: manual
+  tags:
+    - shared
+  variables:
+    BaseImage: k8s-file-copy
+    RemoteUrl: 192.168.10.239:8888/charles0320
+    AppRunEnv: base
+    NameSpace: base
+  only:
+    - main
+  before_script: [ ]
+  script:
+    - echo "try to build image and deploy ${AppRunEnv} start "
+    - TIMESTAMP=$(date +%Y-%m-%d-%H%M%S) # 使用date命令将时间戳转换为Unix时间戳
+    - RemoteImageName="${RemoteUrl}/${BaseImage}:${AppRunEnv}-${TIMESTAMP}"
+    - echo "Compiling the code...${TIMESTAMP} ${AppRunEnv} ${REMOTE_TAG}"
+    - docker buildx build --platform linux/amd64  -t "${RemoteImageName}" . --load
+    - docker push "${RemoteImageName}"
+    - docker rmi "${RemoteImageName}"
+    - echo "Compile complete. Successfully build and push image ${RemoteImageName}"
+    - echo "try to build image and deploy ${APP_RUN_ENV} end"
+    - echo "kubectl set NameSpace ${NameSpace}  deployment/${BaseImage} image ${RemoteImageName}"
+    - kubectl set image deployment/${BaseImage} ${BaseImage}=${RemoteImageName} -n ${NameSpace}
+    - echo "kubectl set successfully"
+    - # 获取最近一次的提交消息
+    - noticejob deploy -e ${AppRunEnv} -v v-${TIMESTAMP} -n ${BaseImage} -t ${DingToken} -u ${WebURL_Dev}
+    - echo "通知发送成功"
