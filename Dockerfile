@@ -1,14 +1,14 @@
-FROM golang:alpine3.21 AS builder
+FROM swr.cn-north-4.myhuaweicloud.com/ddn-k8s/docker.io/golang:alpine3.21 AS builder
 LABEL authors="douguohai@gmail.com"
 
 WORKDIR /app
 
 ADD . /app
 
-RUN go build -o k8s-file-copy
+RUN GOPROXY='https://goproxy.cn' GO111MODULE=on go build -o k8s-file-copy
 
 
-FROM alpine:latest AS runner
+FROM swr.cn-north-4.myhuaweicloud.com/ddn-k8s/docker.io/library/alpine:latest AS runner
 LABEL authors="douguohai@gmail.com"
 # 设置工作目录
 WORKDIR /app
