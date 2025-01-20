@@ -5,6 +5,7 @@ go 1.23.0
 require (
 	github.com/gin-gonic/gin v1.10.0
 	github.com/robfig/cron/v3 v3.0.0
+	github.com/sirupsen/logrus v1.9.3
 	k8s.io/api v0.32.0
 	k8s.io/apimachinery v0.32.0
 	k8s.io/client-go v0.32.0

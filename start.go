@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"github.com/gin-gonic/gin"
 	"github.com/robfig/cron/v3"
+	log "github.com/sirupsen/logrus"
 	"io"
 	"k8s-file-copy/base"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -12,12 +13,12 @@ import (
 	restclient "k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/clientcmd"
 	"k8s.io/client-go/util/homedir"
-	"log"
 	"net/http"
 	"os"
 	"path"
 	"path/filepath"
 	"strings"
+	"time"
 )
 
 var fileTempDir = "./temp"
@@ -30,9 +31,22 @@ var (
 	Cron      = cron.New()
 )
 
+func initLogrus() {
+	logFile, err := os.OpenFile("gin.log", os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0666)
+	if err != nil {
+		log.WithError(err).Fatal("打开日志文件失败")
+	}
+
+	log.SetOutput(io.MultiWriter(logFile, os.Stdout))
+	log.SetLevel(log.InfoLevel)
+	log.SetFormatter(&log.JSONFormatter{
+		TimestampFormat: "2006-01-02 15:04:05",
+	})
+}
+
 func init() {
 	// 1. 加载 kubeConfig 文件
-	kubeConfig := filepath.Join(homedir.HomeDir(), ".kube", "config")
+	kubeConfig := filepath.Join(homedir.HomeDir(), ".kube", "test")
 	config, err = clientcmd.BuildConfigFromFlags("", kubeConfig)
 	if err != nil {
 		panic("k8s 配置文件未配置，无法执行结果 " + err.Error())
@@ -44,6 +58,22 @@ func init() {
 		panic(err.Error())
 	}
 
+	initLogrus()
+
+}
+
+func LoggerMiddleware() gin.HandlerFunc {
+	return func(c *gin.Context) {
+		start := time.Now()
+		c.Next()
+		end := time.Now()
+		log.WithFields(log.Fields{
+			"method":  c.Request.Method,
+			"path":    c.Request.URL.Path,
+			"status":  c.Writer.Status(),
+			"latency": end.Sub(start),
+		}).Info("处理请求")
+	}
 }
 
 func main() {
@@ -54,12 +84,15 @@ func main() {
 
 	// 如果需要同时将日志写入文件和控制台，请使用以下代码。
 	gin.DefaultWriter = io.MultiWriter(f, os.Stdout)
+	gin.SetMode(gin.ReleaseMode)
 
 	r := gin.Default()
 
 	r.Use(gin.CustomRecovery(func(c *gin.Context, err interface{}) {
 		c.JSON(http.StatusBadRequest, "服务器异常")
 	}))
+
+	r.Use(LoggerMiddleware())
 
 	r.GET("/ping", func(c *gin.Context) {
 		c.JSON(200, gin.H{
@@ -97,9 +130,9 @@ func main() {
 			return
 		}
 
-		if len(pods.Items) == 0 {
+		if pods == nil || len(pods.Items) == 0 {
 			log.Printf("copy2pod k8s 根据 namespace: %s 和 deploymenmt：%s 没有找到存活的pod ", copy2pod.TargetNamespace, copy2pod.TargetDeployment)
-			c.JSON(http.StatusOK, gin.H{"code": 500, "message": "操作失败,没定位到pod的" + err.Error()})
+			c.JSON(http.StatusOK, gin.H{"code": 500, "message": "操作失败,没定位到pod的"})
 			return
 		}
 
@@ -126,7 +159,7 @@ func main() {
 	// 绑定 JSON ({"user": "manu", "password": "123"})
 	r.POST("/copy/pod/2/local", func(c *gin.Context) {
 		var pod2local base.CopyFormPod
-		if err := c.ShouldBindJSON(&pod2local); err != nil {
+		if err = c.ShouldBindJSON(&pod2local); err != nil {
 			c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 			return
 		}
@@ -141,9 +174,9 @@ func main() {
 			return
 		}
 
-		if len(pods.Items) == 0 {
+		if pods == nil || len(pods.Items) == 0 {
 			log.Printf("pod2local k8s 根据 namespace: %s 和 deploymenmt：%s 没有找到存活的pod ", pod2local.TargetNamespace, pod2local.TargetDeployment)
-			c.JSON(http.StatusOK, gin.H{"code": 500, "message": "操作失败,没定位到pod," + err.Error()})
+			c.JSON(http.StatusOK, gin.H{"code": 500, "message": "操作失败,没定位到pod,"})
 			return
 		}
 

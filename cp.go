@@ -5,7 +5,9 @@ package main
 
 import (
 	"archive/tar"
+	"bytes"
 	"context"
+	"errors"
 	"fmt"
 	"io"
 	"io/ioutil"
@@ -30,32 +32,16 @@ type Pod struct {
 // CopyFromPod copies a file or directory from a Pod to the local filesystem.
 func (i *Pod) CopyFromPod(ctx context.Context, client *kubernetes.Clientset, config *rest.Config, srcPath string, destPath string) error {
 	// Create a pipe to read the tar stream from the Pod
-	reader, writer := io.Pipe()
-	defer reader.Close()
-
-	// 创建一个 error 通道
-	errCh := make(chan error, 1)
-
+	var buf bytes.Buffer
 	// Start a goroutine to handle the tar stream
-	go func() {
-		defer writer.Close()
-		// 捕获 panic
-		if err := i.copyFromPodToTar(ctx, client, config, srcPath, writer); err != nil {
-			fmt.Println("Error copying from pod:", err)
-			errCh <- fmt.Errorf("error copying from pod: %v", err) // 将错误发送到通道
-			return
-		}
-		errCh <- nil // 没有错误时发送 nil
-	}()
-
-	// Extract the tar stream to the local destination
-	if err := untarAll(reader, srcPath, destPath); err != nil {
-		return fmt.Errorf("failed to untar file: %v", err)
+	if err := i.copyFromPodToTar(ctx, client, config, srcPath, &buf); err != nil {
+		fmt.Println("Error copying from pod:", err)
+		return err
 	}
 
-	// 从通道中接收错误
-	if err := <-errCh; err != nil {
-		return err
+	// Extract the tar stream to the local destination
+	if err := untarAll(&buf, srcPath, destPath); err != nil {
+		return fmt.Errorf("failed to untar file: %v", err)
 	}
 
 	return nil
@@ -122,10 +108,10 @@ func untarAll(reader io.Reader, srcPath, destPath string) error {
 			continue // 如果文件名为空，跳过
 		}
 		srcDir := filepath.Base(srcPath)
-		srcPathPre := strings.Replace(srcPath, srcDir, "", -1)
+		srcPathPre := strings.Replace(srcPath, srcDir, "", 1)
 
 		// 只保留最底层目录
-		fileName = strings.Replace(fmt.Sprintf("/%s", fileName), srcPathPre, "", -1)
+		fileName = strings.Replace(fmt.Sprintf("/%s", fileName), srcPathPre, "", 1)
 
 		// 构造目标路径
 		target := filepath.Join(destPath, fileName)
@@ -169,7 +155,8 @@ func untarAll(reader io.Reader, srcPath, destPath string) error {
 }
 
 func (i *Pod) CopyToPod(ctx context.Context, client *kubernetes.Clientset, config *rest.Config, srcPath string, destPath string) error {
-	reader, writer := io.Pipe()
+
+	var buf bytes.Buffer
 
 	if destPath != "/" && strings.HasSuffix(string(destPath[len(destPath)-1]), "/") {
 		destPath = destPath[:len(destPath)-1]
@@ -179,13 +166,11 @@ func (i *Pod) CopyToPod(ctx context.Context, client *kubernetes.Clientset, confi
 		destPath = destPath + "/" + path.Base(srcPath)
 	}
 
-	go func() {
-		defer writer.Close()
-		err := makeTar(srcPath, destPath, writer)
-		if err != nil {
-			fmt.Println(err)
-		}
-	}()
+	err := makeTar(srcPath, destPath, &buf)
+	if err != nil {
+		log.Println(err)
+		return errors.New("error, failed to tar files")
+	}
 
 	var cmdArr []string
 
@@ -212,17 +197,18 @@ func (i *Pod) CopyToPod(ctx context.Context, client *kubernetes.Clientset, confi
 
 	exec, err := remotecommand.NewSPDYExecutor(config, "POST", req.URL())
 	if err != nil {
-		return err
+		return errors.New("error, creating SPDY executor:" + err.Error())
 	}
 
 	err = exec.StreamWithContext(ctx, remotecommand.StreamOptions{
-		Stdin:  reader,
+		Stdin:  &buf,
 		Stdout: os.Stdout,
 		Stderr: os.Stderr,
 		Tty:    false,
 	})
+
 	if err != nil {
-		return err
+		return errors.New("error, streaming command output:" + err.Error())
 	}
 	return nil
 }
@@ -242,14 +228,6 @@ func makeTar(srcPath, destPath string, writer io.Writer) error {
 }
 
 func recursiveTar(srcBase, srcFile, destBase, destFile string, tarWriter *tar.Writer) error {
-
-	// defer func() {
-	// 	fmt.Println("d")
-	// 	if err := recover(); err != nil {
-	// 		fmt.Println(err) // 这里的err其实就是panic传入的内容
-	// 	}
-	// 	fmt.Println("e")
-	// }()
 
 	filepath := path.Join(srcBase, srcFile)
 	stat, err := os.Lstat(filepath)
